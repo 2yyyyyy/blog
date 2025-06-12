@@ -34,6 +34,15 @@
             </div>
             <%- partial('_partial/footer',{cache: true}) %>
     </div>
+
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <!-- Other scripts -->
+    <% if (theme.scripts !== undefined && theme.scripts.length > 0) { %>
+        <% theme.scripts.forEach(url => { %>
+            <script src="<%- url_for(url) %>"></script>
+        <% }); %>
+    <% } %>
 </body>
 
 </html>
