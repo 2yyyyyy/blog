@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <meta name="author" content="Pkl12y">
+
+
+
+
+
+<title>How browser works part 2---the event loop | Hexo</title>
+
+
+
+    <link rel="icon" href="/favicon.ico">
+
+
+
+
+    <!-- stylesheets list from _config.yml -->
+    
+    <link rel="stylesheet" href="/css/style.css">
+    
+
+
+
+    <!-- scripts list from _config.yml -->
+    
+    <script src="/js/script01.js"></script>
+    
+    <script src="/js/tocbot.min.js"></script>
+    
+
+
+
+    
+    
+        
+    
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <script>
+        // this function is used to check current theme before page loaded.
+        (() => {
+            const pagebody = document.getElementsByTagName('body')[0]
+
+            function setTheme(status) {
+
+                if (status === 'dark') {
+                    window.sessionStorage.theme = 'dark'
+                    pagebody.classList.add('dark-theme');
+
+                } else if (status === 'light') {
+                    window.sessionStorage.theme = 'light'
+                    pagebody.classList.remove('dark-theme');
+                }
+            };
+
+            setTheme(window.sessionStorage.theme)
+        })();
+    </script>
+
+    <div class="wrapper">
+        <header>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-header header-logo"><a href="/">Pkl12y&#39;s Blog</a></div>
+            <div class="menu navbar-right">
+                
+                <a class="menu-item" href="/archives">Posts</a>
+                
+                <a class="menu-item" href="/category">Categories</a>
+                
+                <a class="menu-item" href="/tag">Tags</a>
+                
+                <a class="menu-item" href="/about">About</a>
+                
+                
+                <input id="switch_default" type="checkbox" class="switch_default">
+                <label for="switch_default" class="toggleBtn"></label>
+            </div>
+        </div>
+    </nav>
+
+    
+    <nav class="navbar-mobile" id="nav-mobile">
+        <div class="container">
+            <div class="navbar-header">
+                <div>
+                    <a href="/">Pkl12y&#39;s Blog</a><a id="mobile-toggle-theme">·&nbsp;Light</a>
+                </div>
+                <div class="menu-toggle" onclick="mobileBtn()">
+                    <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 17.27q-.213 0-.356-.145T4 16.768t.144-.356t.356-.143h15q.213 0 .356.144q.144.144.144.357t-.144.356t-.356.143zm0-4.77q-.213 0-.356-.144T4 11.999t.144-.356t.356-.143h15q.213 0 .356.144t.144.357t-.144.356t-.356.143zm0-4.77q-.213 0-.356-.143Q4 7.443 4 7.23t.144-.356t.356-.143h15q.213 0 .356.144T20 7.23t-.144.356t-.356.144z"/></svg>
+                    <svg class="close-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><!-- Icon from Material Symbols Light by Google - https://github.com/google/material-design-icons/blob/master/LICENSE --><path fill="currentColor" d="m12 12.708l-5.246 5.246q-.14.14-.344.15t-.364-.15t-.16-.354t.16-.354L11.292 12L6.046 6.754q-.14-.14-.15-.344t.15-.364t.354-.16t.354.16L12 11.292l5.246-5.246q.14-.14.345-.15q.203-.01.363.15t.16.354t-.16.354L12.708 12l5.246 5.246q.14.14.15.345q.01.203-.15.363t-.354.16t-.354-.16z"/></svg>
+                </div>
+            </div>
+            <div class="menu" id="mobile-menu">
+                
+                <a class="menu-item" href="/archives">Posts</a>
+                
+                <a class="menu-item" href="/category">Categories</a>
+                
+                <a class="menu-item" href="/tag">Tags</a>
+                
+                <a class="menu-item" href="/about">About</a>
+                
+            </div>
+        </div>
+    </nav>
+
+</header>
+<script>
+    var mobileBtn = function f() {
+        var toggleMenu = document.getElementsByClassName("menu-toggle")[0];
+        var mobileMenu = document.getElementById("mobile-menu");
+        if (toggleMenu.classList.contains("active")) {
+            toggleMenu.classList.remove("active")
+            mobileMenu.classList.remove("active")
+        } else {
+            toggleMenu.classList.add("active")
+            mobileMenu.classList.add("active")
+        }
+    }
+</script>
+            <div class="main">
+                <div class="container">
+    
+    
+        <div class="post-toc">
+    <div class="tocbot-list">
+    </div>
+    <div class="tocbot-list-menu">
+        <a class="tocbot-toc-expand" onclick="expand_toc()">Expand all</a>
+        <a onclick="go_top()">Back to top</a>
+        <a onclick="go_bottom()">Go to bottom</a>
+    </div>
+</div>
+
+<script>
+    var tocbot_timer;
+    var DEPTH_MAX = 6; // 为 6 时展开所有
+    var tocbot_default_config = {
+        tocSelector: '.tocbot-list',
+        contentSelector: '.post-content',
+        headingSelector: 'h1, h2, h3, h4, h5',
+        orderedList: false,
+        scrollSmooth: true,
+        onClick: extend_click,
+    };
+
+    function extend_click() {
+        clearTimeout(tocbot_timer);
+        tocbot_timer = setTimeout(function() {
+            tocbot.refresh(obj_merge(tocbot_default_config, {
+                hasInnerContainers: true
+            }));
+        }, 420); // 这个值是由 tocbot 源码里定义的 scrollSmoothDuration 得来的
+    }
+
+    document.ready(function() {
+        tocbot.init(obj_merge(tocbot_default_config, {
+            collapseDepth: 1
+        }));
+    });
+
+    function expand_toc() {
+        var b = document.querySelector('.tocbot-toc-expand');
+        var expanded = b.getAttribute('data-expanded');
+        expanded ? b.removeAttribute('data-expanded') : b.setAttribute('data-expanded', true);
+        tocbot.refresh(obj_merge(tocbot_default_config, {
+            collapseDepth: expanded ? 1 : DEPTH_MAX
+        }));
+        b.innerText = expanded ? 'Expand all' : 'Collapse all';
+    }
+
+    function go_top() {
+        window.scrollTo(0, 0);
+    }
+
+    function go_bottom() {
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function obj_merge(target, source) {
+        for (var item in source) {
+            if (source.hasOwnProperty(item)) {
+                target[item] = source[item];
+            }
+        }
+        return target;
+    }
+</script>
+    
+
+    
+    <article class="post-wrap">
+        <header class="post-header">
+            <h1 class="post-title">How browser works part 2---the event loop</h1>
+            
+                <div class="post-meta">
+                    
+                        Author: <a itemprop="author" rel="author" href="/">Pkl12y</a>
+                    
+
+                    
+                        <span class="post-time">
+                        Date: <a href="#">June 16, 2025&nbsp;&nbsp;21:40:21</a>
+                        </span>
+                    
+                    
+                        <span class="post-category">
+                    Category:
+                            
+                                <a href="/categories/%E5%89%8D%E7%AB%AF/">前端</a>
+                            
+                        </span>
+                    
+                </div>
+            
+        </header>
+
+        <div class="post-content">
+            <p>这是我们理解浏览器工作原理系列文章的第二篇，本篇内容主要介绍浏览器的事件循环机制。 如果还没有阅读过第一篇，建议先阅读 How browser works part 1:浏览器架构， 这会帮助你更好的理解本篇内容。</p>
+<h2 id="浏览器中的主线程"><a href="#浏览器中的主线程" class="headerlink" title="浏览器中的主线程"></a>浏览器中的主线程</h2><p>在浏览器中，我们的应用程序运行在渲染进程中，而渲染进程中的主线程是单线程的。 主线程是我们的应用程序的入口，负责执行我们的代码，并且负责页面的渲染。</p>
+<p>那么现在问题来了，因为主线程是单线程的，那么当我们的代码中存在一些耗时操作的时候，比如网络请求(fetch 或者 XMLHttpRequest)、或者 设置了一个定时(setTimeout)，亦或者是响应用户的操作(比如 点击)，如果主线程需要等待这些耗时操作完成才能继续工作的话，我们的页面 将会变得异常卡顿。</p>
+<p>所有这些耗时操作，对于我们的应用程序来说就是输入和输出(IO)，在编程范式中，为了实现并发，通常有两种模式:</p>
+<ul>
+<li>同步模式: 同步模式下，IO 操作是阻塞的，为了实现并发，通常会结合多进程和多线程</li>
+<li>异步模式: 异步模式下，IO 操作是非阻塞的。编程模型通常是单线程的。主线程只负责执行代码，而 IO 异步操作则会在后台（底层）完成。<br>而很显然浏览器选择了第二种模式，也就是异步模式，因为我们的主线程是单线程的。也就是说主线程只会执行同步任务，这些异步 IO 操作 实际上是由浏览器底层去完成的。</li>
+</ul>
+<p>而我们接下来的工作就是，弄清楚浏览器提供了哪些组件与机制，来确保我们的主线程能够高效的处理并发任务，并且不会阻塞页面的响应与渲染。</p>
+<h2 id="事件循环机制"><a href="#事件循环机制" class="headerlink" title="事件循环机制"></a>事件循环机制</h2><p>浏览器的事件循环机制，通过如下组件的协同工作，来确保我们的主线程能够高效的处理并发任务，并且不会阻塞页面的响应与渲染。</p>
+<p><img src="/image/event-loop.svg"></p>
+<ul>
+<li>Call Stack: 调用栈，用于存储我们的同步任务。这是正在执行的函数的存储位置。当我们调用一个函数时， 这个函数会被压入栈中，当函数执行完毕后，这个函数会被从栈中弹出。</li>
+<li>Web APIs: 浏览器提供的 API，用于处理异步任务(比如 setTimeout、fetch、XMLHttpRequest 等)。这些 API 会在后台完成，不会阻塞主线程。</li>
+<li>Task Queue: 任务队列，又叫回调队列(Callback Queue)，宏任务队列，用于存储我们的异步任务(宏任务)。当异步任务完成时 (比如 setTimeout 设置的定时器到时间后，会产生一个宏任务;)，这个任务会被推入到任务队列中。</li>
+<li>Microtask Queue: 微任务队列，用于存储我们的微任务。微任务的执行时机比宏任务要早，通常用于处理一些需要立即执行（渲染之前，但又不需要同步执行）的任务。</li>
+<li>Event Loop: 事件循环，这是整个事件循环机制的核心。它负责监视调用栈和任务队列（包括宏任务队列和微任务队列），当调用栈为空时，事件循环会从宏任务队列中取出一个宏任务并执行。</li>
+</ul>
+<h2 id="常见的宏任务"><a href="#常见的宏任务" class="headerlink" title="常见的宏任务"></a>常见的宏任务</h2><ul>
+<li>script 执行 (script 标签中的代码都是相当于一个宏任务)</li>
+<li>MessageChannel</li>
+<li>setTimeout callback</li>
+<li>setInterval callback</li>
+<li>用户交互事件(如点击、滚动、键盘输入等)的 callback</li>
+<li>网络请求的 callback</li>
+<li>文件读写的 callback</li>
+</ul>
+<h2 id="常见的微任务"><a href="#常见的微任务" class="headerlink" title="常见的微任务"></a>常见的微任务</h2><ul>
+<li>Promise callback</li>
+<li>MutationObserver callback<br>具体 Event Loop 的执行流程，我们可以用如下伪代码来表示:</li>
+</ul>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">eventLoop</span>(<span class="params"></span>) &#123;</span><br><span class="line">  <span class="keyword">const</span> macroTaskQueue = []; <span class="comment">// 宏任务队列</span></span><br><span class="line">  <span class="keyword">const</span> microTaskQueue = []; <span class="comment">// 微任务队列</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 清空微任务队列</span></span><br><span class="line">  <span class="keyword">function</span> <span class="title function_">exhaustMicroTaskQueue</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">while</span> (microTaskQueue.<span class="property">length</span> !== <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">const</span> microTask = microTaskQueue.<span class="title function_">shift</span>(); <span class="comment">// 从微任务队列中取出一个微任务 FIFO</span></span><br><span class="line">      <span class="comment">// 将任务对应的回调函数压入调用栈中执行</span></span><br><span class="line">      <span class="title function_">runToCompletion</span>(microTask);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 事件循环 会一直执行</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 从宏任务队列中取出一个宏任务</span></span><br><span class="line"><span class="comment">     * 有一个执行的前提：就是Call Stack为空，否则不会取宏任务</span></span><br><span class="line"><span class="comment">     * */</span></span><br><span class="line">    <span class="keyword">const</span> macroTaskCallbacks = macroTaskQueue.<span class="title function_">shift</span>();</span><br><span class="line">    <span class="comment">// 一个宏任务可能包含多个回调: 比如一个元素的 click 事件，可能包含多个回调（事件冒泡）</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; macroTaskCallbacks.<span class="property">length</span>; ++i) &#123;</span><br><span class="line">      <span class="comment">// 执行宏任务的回调</span></span><br><span class="line">      <span class="keyword">const</span> macroTaskCallback = macroTaskCallbacks[i];</span><br><span class="line">      <span class="comment">// 将任务对应的回调函数压入调用栈中执行</span></span><br><span class="line">      <span class="title function_">runToCompletion</span>(macroTaskCallback);</span><br><span class="line">      <span class="comment">// 执行完宏任务的每个回调后，清空当前的微任务队列</span></span><br><span class="line">      <span class="title function_">exhaustMicroTaskQueue</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如下代码，当我们点击 inner 元素时，控制台会依次输出什么呢？</p>
+<figure class="highlight js"><figcaption><span>App.tsx</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">App</span>(<span class="params"></span>) &#123;</span><br><span class="line">  <span class="title function_">useEffect</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> outer = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&quot;outer&quot;</span>);</span><br><span class="line">    <span class="keyword">const</span> inner = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&quot;inner&quot;</span>);</span><br><span class="line">    <span class="keyword">const</span> <span class="title function_">handleOuterClick</span> = (<span class="params"></span>) =&gt; &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;outer clicked&quot;</span>);</span><br><span class="line">      <span class="title class_">Promise</span>.<span class="title function_">resolve</span>().<span class="title function_">then</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;outer promise&quot;</span>);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">const</span> <span class="title function_">handleInnerClick</span> = (<span class="params"></span>) =&gt; &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;inner clicked&quot;</span>);</span><br><span class="line">      <span class="title class_">Promise</span>.<span class="title function_">resolve</span>().<span class="title function_">then</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;inner promise&quot;</span>);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">if</span> (outer &amp;&amp; inner) &#123;</span><br><span class="line">      outer.<span class="title function_">addEventListener</span>(<span class="string">&quot;click&quot;</span>, handleOuterClick);</span><br><span class="line">      inner.<span class="title function_">addEventListener</span>(<span class="string">&quot;click&quot;</span>, handleInnerClick);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="function">() =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (outer &amp;&amp; inner) &#123;</span><br><span class="line">        outer.<span class="title function_">removeEventListener</span>(<span class="string">&quot;click&quot;</span>, handleOuterClick);</span><br><span class="line">        inner.<span class="title function_">removeEventListener</span>(<span class="string">&quot;click&quot;</span>, handleInnerClick);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;, []);</span><br><span class="line">  <span class="keyword">return</span> (</span><br><span class="line">    <span class="language-xml"><span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;outer&quot;</span>&gt;</span></span></span><br><span class="line"><span class="language-xml">      <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;inner&quot;</span>&gt;</span>click me<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span></span><br><span class="line"><span class="language-xml">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span></span><br><span class="line">  );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>正确答案是:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">inner clicked</span><br><span class="line">inner promise</span><br><span class="line">outer clicked</span><br><span class="line">outer promise</span><br></pre></td></tr></table></figure>
+
+<p>为什么呢？</p>
+<ul>
+<li>我们的代码里，有两个事件监听器，一个监听 outer 元素的 click 事件，一个监听 inner 元素的 click 事件。</li>
+<li>当我们调用 <code>addEventListener</code> 时，其实是将回调函数注册到 Web APIs 中，当事件触发时，回调函数对应的 <code>事件</code> 会被推入到宏任务队列中。</li>
+<li>当我们点击 inner 元素时，inner 元素的 click 事件会被触发。会将这个点击事件 （事件分发的入口函数-也就是浏览器内部的事件调度机制会把“处理这个点击事件”的任务放入宏任务队列）放入 <strong>宏任务队列（Callback Queue）</strong> 中（只有一个宏任务）。</li>
+<li>事件循环会从宏任务队列中取出一个宏任务，并将这个宏任务对应的回调函数（这里有两个回调函数）一一压入到调用栈中执行。</li>
+<li>当执行每一个回调函数时，会将过程中产生的微任务（比如 Promise.resolve().then()）压入到微任务队列中。</li>
+<li>当执行完宏任务的回调函数后，会执行微任务队列中的微任务。</li>
+</ul>
+<p>这里有几点需要注意的:</p>
+<blockquote>
+<ol>
+<li>事件循环机制是基于事件的, 每个事件（比如点击事件）对应一个宏任务</li>
+<li>事件的所有监听函数属于同一个事件的处理过程，浏览器会在执行这个宏任务时，依次调用所有注册的监听函数。</li>
+<li>也就是说，事件的分发和监听函数的调用都发生在同一个宏任务中。</li>
+</ol>
+</blockquote>
+<h2 id="渲染"><a href="#渲染" class="headerlink" title="渲染"></a>渲染</h2><p>以上事件循环机制，我们并没有涉及到渲染，那么渲染是怎么发生的呢？</p>
+<h3 id="渲染过程"><a href="#渲染过程" class="headerlink" title="渲染过程"></a>渲染过程</h3><p>一次渲染的过程大致可以分为以下几个步骤:</p>
+<ol>
+<li>DOM 树的构建</li>
+<li>CSSOM 的构建</li>
+<li>将 DOM 树和 CSSOM 树合并生成渲染树</li>
+<li>根据渲染树生成布局树</li>
+<li>根据布局树生成绘制记录: 绘制到不同的层上</li>
+<li>合成并显示: 将绘制记录提交到合成线程, 合成线程将绘制记录提交到 GPU, GPU 将绘制记录绘制到屏幕上</li>
+</ol>
+<p>这其中的多数工作（1-5）都发生在主线程上。因此，如果主线程被阻塞，那么渲染过程也会被阻塞。而 event loop 机制的存在，正是为了尽可能得 避免主线程被阻塞，从而保证渲染过程的流畅。</p>
+<h3 id="渲染的时机"><a href="#渲染的时机" class="headerlink" title="渲染的时机"></a>渲染的时机</h3><p>渲染也是 event loop 的一部分。在 event loop 的每次循环(一次循环也叫一个 tick)结束前，都会检查是否需要进行渲染。而渲染通常需要满足以下条件:</p>
+<ul>
+<li>是时候渲染了: 这通常和屏幕的刷新率有关系，比如屏幕的刷新率是 60Hz，那么每 16.67ms 就会有一次刷新，每次 event loop 结束前 都会检查是否是时候渲染一个新帧了。</li>
+</ul>
+<h3 id="结合渲染之后的-event-loop-流程"><a href="#结合渲染之后的-event-loop-流程" class="headerlink" title="结合渲染之后的 event loop 流程"></a>结合渲染之后的 event loop 流程</h3><p>结合渲染之后的 event loop 流程，如下面伪代码所示:</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">eventLoop</span>(<span class="params"></span>) &#123;</span><br><span class="line">  <span class="keyword">const</span> macroTaskQueue = []; <span class="comment">// 宏任务队列</span></span><br><span class="line">  <span class="keyword">const</span> microTaskQueue = []; <span class="comment">// 微任务队列</span></span><br><span class="line">  <span class="keyword">const</span> rAFQueue = []; <span class="comment">// requestAnimationFrame 队列</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 清空微任务队列</span></span><br><span class="line">  <span class="keyword">function</span> <span class="title function_">exhaustMicroTaskQueue</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">while</span> (microTaskQueue.<span class="property">length</span> !== <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="comment">// 从微任务队列中取出一个微任务 FIFO</span></span><br><span class="line">      <span class="keyword">const</span> microTask = microTaskQueue.<span class="title function_">shift</span>();</span><br><span class="line">      <span class="comment">// 将任务对应的回调函数压入调用栈中执行</span></span><br><span class="line">      <span class="title function_">runToCompletion</span>(microTask);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 事件循环 会一直执行</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">    <span class="comment">// 从宏任务队列中取出一个宏任务</span></span><br><span class="line">    <span class="keyword">const</span> macroTaskCallbacks = macroTaskQueue.<span class="title function_">shift</span>();</span><br><span class="line">    <span class="comment">// 一个宏任务可能包含多个回调: 比如一个元素的 click 事件，可能包含多个回调（事件冒泡）</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; macroTaskCallbacks.<span class="property">length</span>; ++i) &#123;</span><br><span class="line">      <span class="keyword">const</span> macroTaskCallback = macroTaskCallbacks[i];</span><br><span class="line">      <span class="comment">// 将任务对应的回调函数压入调用栈中执行</span></span><br><span class="line">      <span class="title function_">runToCompletion</span>(macroTaskCallback);</span><br><span class="line">      <span class="comment">// 执行完宏任务的每个回调后，清空当前的微任务队列</span></span><br><span class="line">      <span class="title function_">exhaustMicroTaskQueue</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 检查是否是时候渲染一个新帧了</span></span><br><span class="line"><span class="comment">     * 受屏幕刷新率影响，比如屏幕的刷新率是 60Hz，那么每 16.67ms 就会有一次刷新</span></span><br><span class="line"><span class="comment">     * */</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="title function_">isItTimeForNextFrameRender</span>()) &#123;</span><br><span class="line">      <span class="comment">// 从 requestAnimationFrame 队列中取出一个 requestAnimationFrame 任务 (可能存在多个，一一执行)</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; rAFQueue.<span class="property">length</span>; ++i) &#123;</span><br><span class="line">        <span class="keyword">const</span> rAFTask = rAFQueue[i];</span><br><span class="line">        <span class="comment">// 将任务对应的回调函数压入调用栈中执行</span></span><br><span class="line">        <span class="title function_">runToCompletion</span>(rAFTask);</span><br><span class="line">        <span class="comment">// 执行完 requestAnimationFrame 任务后，清空当前的微任务队列</span></span><br><span class="line">        <span class="title function_">exhaustMicroTaskQueue</span>();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 执行渲染，如果有变化需要渲染的话</span></span><br><span class="line">      <span class="title function_">render</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>microtask 的执行时机</strong>只要 call stack 为空，就会执行微任务队列中的微任务，将微任务队列清空。所以在上述伪代码中，你会看到:</p>
+<ol>
+<li>在执行完宏任务的每个回调后（一个宏任务可能会对应多个回调），会清空当前微任务队列</li>
+<li>在执行完每个 requestAnimationFrame 回调任务后（因为当前 callstack 为空），会清空当前微任务队列</li>
+</ol>
+<h3 id="事件循环的过程概述"><a href="#事件循环的过程概述" class="headerlink" title="事件循环的过程概述"></a>事件循环的过程概述</h3><p>每次事件循环的过程大致如下:</p>
+<ol>
+<li>若当前调用栈为空，从宏任务队列中取出一个宏任务，将其对应的回调函数一一压入调用栈中去执行</li>
+<li>在当前宏任务对应的每一个回调函数执行完，清空当前回调函数产生的微任务（将微任务队列中的微任务一一压入调用用栈中执行）</li>
+<li>检查是否是时候渲染一个新帧了（受屏幕刷新率影响），如果需要渲染，则将 requestAnimationFrame 队列中的任务一一压入调用栈中执行</li>
+<li>在执行每一个 requestAnimationFrame 任务后，清空当前回调函数产生的微任务（将微任务队列中的微任务一一压入调用用栈中执行）</li>
+<li>执行渲染（如果需要渲染的话）<br>好了，利用所学知识，尝试回答下面的问题: 屏幕上最终绘制的是什么？</li>
+</ol>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">setTimeout</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;timeout 1&quot;</span>);</span><br><span class="line">  <span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">&quot;A&quot;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="title function_">requestAnimationFrame</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;requestAnimationFrame&quot;</span>);</span><br><span class="line">  <span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">&quot;B&quot;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="built_in">setTimeout</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;timeout 2&quot;</span>);</span><br><span class="line">  <span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">&quot;C&quot;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;script&quot;</span>);</span><br><span class="line"><span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">&quot;D&quot;</span>;</span><br></pre></td></tr></table></figure>
+
+<p>正确答案是: 绝大多数情况下是 B，但是也有可能输出 C。</p>
+<p>为什么呢？</p>
+<ul>
+<li>因为 requestAnimationFrame 的 callback 会在下一次渲染之前执行</li>
+<li>而浏览器渲染是受屏幕刷新率影响的，多数情况下 D、A、C 这些都已经执行了，但是还没有到下一次渲染的时间，因此最终会渲染 B （而且只有这一次渲染）</li>
+<li>但是也可能是 C，因为有可能恰好当时时间到了渲染下一帧的时候了，B 就会先出现，然后才是 C（此时有多次渲染-至少两次）</li>
+</ul>
+
+        </div>
+
+        
+            <section class="post-copyright">
+                
+                    <p class="copyright-item">
+                        <span>Author:</span>
+                        <span>Pkl12y</span>
+                    </p>
+                
+                
+                
+                    <p class="copyright-item">
+                        <span>License:</span>
+                        <span>Copyright (c) 2019 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc/4.0/">CC-BY-NC-4.0</a> LICENSE</span>
+                    </p>
+                
+                
+                     <p class="copyright-item">
+                         <span>Slogan:</span>
+                         <span>Do you believe in <strong>DESTINY</strong>?</span>
+                     </p>
+                
+
+            </section>
+        
+        <section class="post-tags">
+            <div>
+                <span>Tag(s):</span>
+                <span class="tag">
+                    
+                    
+                        <a href="/tags/browser/"># browser</a>
+                    
+                        
+                </span>
+            </div>
+            <div>
+                <a href="javascript:window.history.back();">back</a>
+                <span>· </span>
+                <a href="/">home</a>
+            </div>
+        </section>
+        <section class="post-nav">
+            
+            
+            <a class="next" rel="next" href="/2025/06/16/%E6%B5%8F%E8%A7%88%E5%99%A8%E6%9E%B6%E6%9E%841/">How browser works part 1---浏览器架构</a>
+            
+        </section>
+
+
+    </article>
+</div>
+
+            </div>
+            <footer id="footer" class="footer">
+    <div class="copyright">
+        <span>© Pkl12y | Powered by <a href="https://hexo.io" target="_blank">Hexo</a> & <a href="https://github.com/Siricee/hexo-theme-Chic" target="_blank">Chic</a></span>
+    </div>
+</footer>
+
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <!-- Other scripts -->
+    
+        
+            <script src="/js/script01.js"></script>
+        
+            <script src="/js/tocbot.min.js"></script>
+        
+    
+</body>
+
+</html>

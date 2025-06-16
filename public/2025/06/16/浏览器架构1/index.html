@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <meta name="author" content="Pkl12y">
+
+
+
+
+
+<title>How browser works part 1---浏览器架构 | Hexo</title>
+
+
+
+    <link rel="icon" href="/favicon.ico">
+
+
+
+
+    <!-- stylesheets list from _config.yml -->
+    
+    <link rel="stylesheet" href="/css/style.css">
+    
+
+
+
+    <!-- scripts list from _config.yml -->
+    
+    <script src="/js/script01.js"></script>
+    
+    <script src="/js/tocbot.min.js"></script>
+    
+
+
+
+    
+    
+        
+    
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <script>
+        // this function is used to check current theme before page loaded.
+        (() => {
+            const pagebody = document.getElementsByTagName('body')[0]
+
+            function setTheme(status) {
+
+                if (status === 'dark') {
+                    window.sessionStorage.theme = 'dark'
+                    pagebody.classList.add('dark-theme');
+
+                } else if (status === 'light') {
+                    window.sessionStorage.theme = 'light'
+                    pagebody.classList.remove('dark-theme');
+                }
+            };
+
+            setTheme(window.sessionStorage.theme)
+        })();
+    </script>
+
+    <div class="wrapper">
+        <header>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-header header-logo"><a href="/">Pkl12y&#39;s Blog</a></div>
+            <div class="menu navbar-right">
+                
+                <a class="menu-item" href="/archives">Posts</a>
+                
+                <a class="menu-item" href="/category">Categories</a>
+                
+                <a class="menu-item" href="/tag">Tags</a>
+                
+                <a class="menu-item" href="/about">About</a>
+                
+                
+                <input id="switch_default" type="checkbox" class="switch_default">
+                <label for="switch_default" class="toggleBtn"></label>
+            </div>
+        </div>
+    </nav>
+
+    
+    <nav class="navbar-mobile" id="nav-mobile">
+        <div class="container">
+            <div class="navbar-header">
+                <div>
+                    <a href="/">Pkl12y&#39;s Blog</a><a id="mobile-toggle-theme">·&nbsp;Light</a>
+                </div>
+                <div class="menu-toggle" onclick="mobileBtn()">
+                    <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 17.27q-.213 0-.356-.145T4 16.768t.144-.356t.356-.143h15q.213 0 .356.144q.144.144.144.357t-.144.356t-.356.143zm0-4.77q-.213 0-.356-.144T4 11.999t.144-.356t.356-.143h15q.213 0 .356.144t.144.357t-.144.356t-.356.143zm0-4.77q-.213 0-.356-.143Q4 7.443 4 7.23t.144-.356t.356-.143h15q.213 0 .356.144T20 7.23t-.144.356t-.356.144z"/></svg>
+                    <svg class="close-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><!-- Icon from Material Symbols Light by Google - https://github.com/google/material-design-icons/blob/master/LICENSE --><path fill="currentColor" d="m12 12.708l-5.246 5.246q-.14.14-.344.15t-.364-.15t-.16-.354t.16-.354L11.292 12L6.046 6.754q-.14-.14-.15-.344t.15-.364t.354-.16t.354.16L12 11.292l5.246-5.246q.14-.14.345-.15q.203-.01.363.15t.16.354t-.16.354L12.708 12l5.246 5.246q.14.14.15.345q.01.203-.15.363t-.354.16t-.354-.16z"/></svg>
+                </div>
+            </div>
+            <div class="menu" id="mobile-menu">
+                
+                <a class="menu-item" href="/archives">Posts</a>
+                
+                <a class="menu-item" href="/category">Categories</a>
+                
+                <a class="menu-item" href="/tag">Tags</a>
+                
+                <a class="menu-item" href="/about">About</a>
+                
+            </div>
+        </div>
+    </nav>
+
+</header>
+<script>
+    var mobileBtn = function f() {
+        var toggleMenu = document.getElementsByClassName("menu-toggle")[0];
+        var mobileMenu = document.getElementById("mobile-menu");
+        if (toggleMenu.classList.contains("active")) {
+            toggleMenu.classList.remove("active")
+            mobileMenu.classList.remove("active")
+        } else {
+            toggleMenu.classList.add("active")
+            mobileMenu.classList.add("active")
+        }
+    }
+</script>
+            <div class="main">
+                <div class="container">
+    
+    
+        <div class="post-toc">
+    <div class="tocbot-list">
+    </div>
+    <div class="tocbot-list-menu">
+        <a class="tocbot-toc-expand" onclick="expand_toc()">Expand all</a>
+        <a onclick="go_top()">Back to top</a>
+        <a onclick="go_bottom()">Go to bottom</a>
+    </div>
+</div>
+
+<script>
+    var tocbot_timer;
+    var DEPTH_MAX = 6; // 为 6 时展开所有
+    var tocbot_default_config = {
+        tocSelector: '.tocbot-list',
+        contentSelector: '.post-content',
+        headingSelector: 'h1, h2, h3, h4, h5',
+        orderedList: false,
+        scrollSmooth: true,
+        onClick: extend_click,
+    };
+
+    function extend_click() {
+        clearTimeout(tocbot_timer);
+        tocbot_timer = setTimeout(function() {
+            tocbot.refresh(obj_merge(tocbot_default_config, {
+                hasInnerContainers: true
+            }));
+        }, 420); // 这个值是由 tocbot 源码里定义的 scrollSmoothDuration 得来的
+    }
+
+    document.ready(function() {
+        tocbot.init(obj_merge(tocbot_default_config, {
+            collapseDepth: 1
+        }));
+    });
+
+    function expand_toc() {
+        var b = document.querySelector('.tocbot-toc-expand');
+        var expanded = b.getAttribute('data-expanded');
+        expanded ? b.removeAttribute('data-expanded') : b.setAttribute('data-expanded', true);
+        tocbot.refresh(obj_merge(tocbot_default_config, {
+            collapseDepth: expanded ? 1 : DEPTH_MAX
+        }));
+        b.innerText = expanded ? 'Expand all' : 'Collapse all';
+    }
+
+    function go_top() {
+        window.scrollTo(0, 0);
+    }
+
+    function go_bottom() {
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function obj_merge(target, source) {
+        for (var item in source) {
+            if (source.hasOwnProperty(item)) {
+                target[item] = source[item];
+            }
+        }
+        return target;
+    }
+</script>
+    
+
+    
+    <article class="post-wrap">
+        <header class="post-header">
+            <h1 class="post-title">How browser works part 1---浏览器架构</h1>
+            
+                <div class="post-meta">
+                    
+                        Author: <a itemprop="author" rel="author" href="/">Pkl12y</a>
+                    
+
+                    
+                        <span class="post-time">
+                        Date: <a href="#">June 16, 2025&nbsp;&nbsp;20:24:24</a>
+                        </span>
+                    
+                    
+                        <span class="post-category">
+                    Category:
+                            
+                                <a href="/categories/%E5%89%8D%E7%AB%AF/">前端</a>
+                            
+                        </span>
+                    
+                </div>
+            
+        </header>
+
+        <div class="post-content">
+            <p>这是理解浏览器工作原理的系列文章的第一篇，本篇内容会从顶层简单介绍下浏览器的进程架构，理解它能够为后续更深入探索浏览器工作原理打下坚实的基础。</p>
+<h2 id="chrome-浏览器架构"><a href="#chrome-浏览器架构" class="headerlink" title="chrome 浏览器架构"></a>chrome 浏览器架构</h2><p>如果你是一个前端开发人员，可能你或多或少的会听说过浏览器中的 <code>main thread</code>。前端人员写下的绝大多数代码都运行在这个 <code>主线程</code> 之中， 你肯定也听说过前端 js 的执行以及页面的渲染都是在主线程这个单一线程上执行的，那么浏览器到底是如何工作的，浏览器中是否所有的操作都是运行在 这个单一主线程之上的呢？</p>
+<p>如果简单回答上述问题，那答案一定是否定的。</p>
+<p>话不多说，直接先上一个进程架构的图。</p>
+<p><img src="/image/browser-architecture.svg"></p>
+<p>通过以上的浏览器架构图，我们可以得出如下信息:</p>
+<h3 id="软件、操作系统、硬件三层架构"><a href="#软件、操作系统、硬件三层架构" class="headerlink" title="软件、操作系统、硬件三层架构"></a>软件、操作系统、硬件三层架构</h3><p>本架构图首先自上而下分为三个层次</p>
+<ul>
+<li><p>最上层为软件层（或者叫做应用程序层）: 我们的前端程序（主要运行在渲染进程中的 main thread 之中）和浏览器本身一起运行在这个层次</p>
+</li>
+<li><p>中间层为操作系统层: 操作系统作为应用程序和硬件层次的中间层，其为我们的应用程序提供操作底层硬件的接口</p>
+</li>
+<li><p>最下面的一层为硬件层: 本身硬件层可能有很多东西，但是这里面最核心的是计算的部分，通常包含 CPU（通用处理单元） 和 GPU（专用处理单元： 在处理某些简单计算任务上异常高效）</p>
+</li>
+</ul>
+<h2 id="浏览器中主要进程的职责"><a href="#浏览器中主要进程的职责" class="headerlink" title="浏览器中主要进程的职责"></a>浏览器中主要进程的职责</h2><h3 id="Browser-Process"><a href="#Browser-Process" class="headerlink" title="Browser Process"></a>Browser Process</h3><ul>
+<li>UI Thread: 控制 chrome 浏览器部分的 ui 展现（比如: 地址栏、书签、前进后退按钮等等）</li>
+<li>Network Thread: 处理底层的网络请求，渲染进程中的请求最终都要交给 Network Thread 来处理，可以理解为每个请求都会让浏览器进程启动一个新的 Network Thread 来具体处理请求。请求不会无限制的增长，因此并发能力是受到限制的，通常同一个域名最多只能 6 个并发。</li>
+<li>Storage Thread: 比如处理本地文件系统访问等等存储相关的事项。</li>
+</ul>
+<blockquote>
+<ol>
+<li><em>事实上，浏览器进程中不止这么多种类的线程，我们只在这里列举出来了常用的线程。</em></li>
+<li><em>当硬件条件（比如内存充足）允许的情况下，某些线程可能会运行在独立的进程中，比如 Network Thread 可能运行在独立的 Network Process 之中。</em></li>
+</ol>
+</blockquote>
+<h3 id="Browser-Process-1"><a href="#Browser-Process-1" class="headerlink" title="Browser Process"></a>Browser Process</h3><p>Renderer Process（渲染进程）是我们的 web 应用程序具体运行的进程，在 chrome 中每个 tab 都会启动一个渲染进程。一个进程（tab）的崩溃不会影响其他进程（tab）。</p>
+<ul>
+<li>Main Thread: 我们前端开发人员最熟悉的线程，我们写下的绝大多数代码都运行在这个线程之上。</li>
+<li>Worker Threads: 如果我们的应用程序使用了 web worker 或者 service worker。那么就会有这些线程。</li>
+<li>Compositor Thread: 主线程会将渲染出来的层次和绘制顺序信息给到 Compositor Thread。Compositor Thread 将这些层切分成更小的块，然后将这些可绘制块交付给 Raster Thread， Raster Thread 将这些小块一一栅格化后存储到 GPU 内存里，最后 Compositor Thread 再拿到这些信息，将其合并成一个 compositor frame。这个 compositor frame 最后再通过 Browser Process 转交给 GPU 去显示到屏幕上。</li>
+<li>Raster Thread: 将 Compositor Thread 切分的小块使用 GPU 进行处理一一栅格化。</li>
+</ul>
+<blockquote>
+<p><em>Compositor Thread 和 Raster Thread 的主要作用是为了提高渲染的性能。</em></p>
+</blockquote>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ol>
+<li>尽管我们前端代码主要运行在主线程上，但是通常用户的输入的直接接受者并不是渲染进程的主线程。而是浏览器进程。</li>
+</ol>
+<ul>
+<li>比如：当我们在地址栏中输入 url，这个用户输入的接受者与开始的很多处理都是浏览器进程在做，浏览器进程相当于一个核心的调度者</li>
+<li>再比如: 当用户在操作我们的应用程序时，比如进行了一次点击操作，这个操作的直接接受者也还是浏览器进程，是浏览器进程把这个用户输入触发给我们的应用程序。</li>
+</ul>
+<ol start="2">
+<li>浏览器进程（Browser Process）和渲染进程（Renderer Process）的协调工作确保了一个应用程序的高效运行。</li>
+</ol>
+<h3 id="用户的一次输入后，到底发生了什么"><a href="#用户的一次输入后，到底发生了什么" class="headerlink" title="用户的一次输入后，到底发生了什么"></a>用户的一次输入后，到底发生了什么</h3><p>让我们以用户在地址栏输入 “<a target="_blank" rel="noopener" href="https://www.example.com/">https://www.example.com</a>“ 为例，详细描述一下这个过程中浏览器各个部分是如何协同工作的：</p>
+<ol>
+<li>用户输入阶段</li>
+</ol>
+<ul>
+<li>用户在浏览器的地址栏中输入 URL，这个输入事件首先被 Browser Process 的 UI Thread 捕获</li>
+<li>UI Thread 会实时处理用户的输入，比如显示 URL 建议、自动补全等功能</li>
+</ul>
+<ol start="2">
+<li>初始化导航阶段</li>
+</ol>
+<ul>
+<li>当用户按下回车键，UI Thread 会启动一个新的导航流程</li>
+<li>UI Thread 将控制权移交给 Network Thread，开始处理 URL</li>
+</ul>
+<ol start="3">
+<li>网络请求阶段</li>
+</ol>
+<ul>
+<li>Network Thread 首先检查本地缓存是否有响应资源</li>
+<li>如果需要从网络获取，Network Thread 会进行 DNS 查询，建立 TLS 连接（如果是 HTTPS）</li>
+<li>Network Thread 发起实际的 HTTP 请求</li>
+</ul>
+<ol start="4">
+<li>响应处理阶段</li>
+</ol>
+<ul>
+<li>Network Thread 接收到响应后，首先检查响应的 Content-Type 等信息，确定如何处理这个响应</li>
+<li>如果是 HTML 响应，Network Thread 会将控制权交还给 UI Thread，表明需要渲染页面</li>
+<li>如果是下载文件，则会将控制权交给下载管理器</li>
+</ul>
+<ol start="5">
+<li>渲染进程初始化阶段</li>
+</ol>
+<ul>
+<li>UI Thread 确定需要渲染页面后，会启动一个新的 Renderer Process</li>
+<li>这时 Browser Process 会给这个新的渲染进程分配一个沙箱环境，确保安全性</li>
+</ul>
+<ol start="6">
+<li>导航确认阶段</li>
+</ol>
+<ul>
+<li>一旦 Renderer Process 准备就绪，Browser Process 通过 IPC（进程间通信）将数据传输给 Renderer Process</li>
+<li>此时 Browser Process 会更新浏览器 UI，比如：<ul>
+<li>更新地址栏</li>
+<li>更新导航历史</li>
+<li>更新前进&#x2F;后退按钮状态</li>
+<li>显示加载进度指示器</li>
+</ul>
+</li>
+</ul>
+<ol start="7">
+<li>渲染阶段（在 Renderer Process 的 Main Thread 中进行）</li>
+</ol>
+<ul>
+<li>Main Thread 开始解析 HTML</li>
+<li>构建 DOM 树</li>
+<li>执行 JavaScript</li>
+<li>构建 CSSOM</li>
+<li>进行布局计算 (layout)</li>
+<li>生成图层树 (paint to layer tree)</li>
+</ul>
+<ol start="8">
+<li>合成和显示阶段</li>
+</ol>
+<ul>
+<li>Compositor Thread 接收到主线程的图层信息</li>
+<li>将图层分成小块（tiles）</li>
+<li>Raster Thread 将这些小块栅格化到 GPU 内存中</li>
+<li>Compositor Thread 生成合成帧（Compositor Frame）</li>
+<li>通过 Browser Process 将合成帧发送给 GPU 进行显示</li>
+</ul>
+<p>这整个过程展示了浏览器的多进程架构如何协同工作：</p>
+<ul>
+<li>Browser Process 作为总指挥，负责协调整个导航过程</li>
+<li>Network Thread 处理所有网络相关的操作</li>
+<li>Renderer Process 负责页面的实际渲染</li>
+<li>GPU 进程负责最终的显示（我们未在上图展示）</li>
+</ul>
+<p>这种架构设计不仅保证了浏览器的稳定性（一个标签页崩溃不会影响其他标签），还通过任务分离提高了性能和安全性。</p>
+<blockquote>
+<ol>
+<li><em>这其中的 7 &amp; 8 两个步骤是和我们的应用程序性能直接相关的，而且步骤 7 是在我们的主线程这一个单线程中工作的， 所以这也是为什么我们常说 js 的执行以及页面的渲染都是在主线程这一个单线程中执行的。</em></li>
+<li><em>步骤 7 &amp; 8 整体在一起，我们通常称之为 render pipeline 或者 pixel pipeline 我们的前端性能优化，核心就是将这个 pipeline 给优化好。</em></li>
+</ol>
+</blockquote>
+
+        </div>
+
+        
+            <section class="post-copyright">
+                
+                    <p class="copyright-item">
+                        <span>Author:</span>
+                        <span>Pkl12y</span>
+                    </p>
+                
+                
+                
+                    <p class="copyright-item">
+                        <span>License:</span>
+                        <span>Copyright (c) 2019 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc/4.0/">CC-BY-NC-4.0</a> LICENSE</span>
+                    </p>
+                
+                
+                     <p class="copyright-item">
+                         <span>Slogan:</span>
+                         <span>Do you believe in <strong>DESTINY</strong>?</span>
+                     </p>
+                
+
+            </section>
+        
+        <section class="post-tags">
+            <div>
+                <span>Tag(s):</span>
+                <span class="tag">
+                    
+                    
+                        <a href="/tags/browser/"># browser</a>
+                    
+                        
+                </span>
+            </div>
+            <div>
+                <a href="javascript:window.history.back();">back</a>
+                <span>· </span>
+                <a href="/">home</a>
+            </div>
+        </section>
+        <section class="post-nav">
+            
+                <a class="prev" rel="prev" href="/2025/06/16/%E6%B5%8F%E8%A7%88%E5%99%A8%E6%9E%B6%E6%9E%842/">How browser works part 2---the event loop</a>
+            
+            
+            <a class="next" rel="next" href="/2025/06/12/%E4%B8%8D%E8%A6%81%E5%86%8D%E4%BD%BF%E7%94%A8%20useEffect%20%E6%9D%A5%E5%8F%91%E9%80%81%E8%AF%B7%E6%B1%82%EF%BC%8C%E7%AE%A1%E7%90%86%E6%9C%8D%E5%8A%A1%E7%AB%AF%E7%8A%B6%E6%80%81%E4%BA%86/">不要再使用 useEffect 来发送请求，管理服务端状态了</a>
+            
+        </section>
+
+
+    </article>
+</div>
+
+            </div>
+            <footer id="footer" class="footer">
+    <div class="copyright">
+        <span>© Pkl12y | Powered by <a href="https://hexo.io" target="_blank">Hexo</a> & <a href="https://github.com/Siricee/hexo-theme-Chic" target="_blank">Chic</a></span>
+    </div>
+</footer>
+
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <!-- Other scripts -->
+    
+        
+            <script src="/js/script01.js"></script>
+        
+            <script src="/js/tocbot.min.js"></script>
+        
+    
+</body>
+
+</html>

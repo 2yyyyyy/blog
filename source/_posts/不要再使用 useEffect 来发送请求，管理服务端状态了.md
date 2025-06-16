@@ -2,7 +2,7 @@
 title: 不要再使用 useEffect 来发送请求，管理服务端状态了
 date: 2025-06-12 10:31:33
 tags: react
-categories: react
+categories: 前端
 ---
 
 在 react 中如何管理服务端状态？相信很多小伙伴的第一反应就是： 在 useEffect 里发送请求，然后结合 useState 来管理状态。
